@@ -3,16 +3,11 @@
 Write-Host "Installing Better-CD..." -ForegroundColor Cyan
 
 # --- 1. Locate the Executable (Dynamic) ---
-
 $currentDir = $PSScriptRoot
-
-
 $exePathFound = Join-Path -Path $currentDir -ChildPath "\bin\better-cd-core.exe"
-
 
 if (-not (Test-Path $exePathFound)) {
     Write-Host "Error: 'better-cd-core.exe' not found in: $currentDir" -ForegroundColor Red
-    Write-Host "Please ensure the .exe is in the same folder as this script." -ForegroundColor Gray
     exit
 }
 
@@ -24,30 +19,50 @@ if (-not (Test-Path $profilePath)) {
     New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
 
-
+# --- 3. Construct the Function ---
 $functionScript = @"
 
 # --- Better-CD Start ---
 function b-cd {
+    [CmdletBinding()] # <--- [NEW] Enforces strict parameter checking
     param (
+        [Parameter(Position=0)]
         [string]`$Name = "",
-        [switch]`$n,  # New
-        [switch]`$o,  # Overwrite
-        [switch]`$d,  # Delete
-        [switch]`$list, # List
-        [switch]`$Version  # <--- [NEW] Version Flag
+        
+        [Parameter(Position=1)]
+        [string]`$PathInput = "", 
+        
+        [switch]`$n,       # GUI New
+        [switch]`$o,       # GUI Overwrite
+        [switch]`$d,       # Delete
+        [switch]`$list,    # List
+        [switch]`$in,      # Instant New
+        [switch]`$io,      # Instant Overwrite
+        [switch]`$Version  # Version
     )
+
+    # --- 1. Strict Parameter Validation ---
+    # If the user typed a flag that doesn't exist (like -dsadha), 
+    # [CmdletBinding()] above handles the error automatically before code runs.
+    
+    # Extra Check: If User types 'b-cd -invalid' inside quotes or somehow bypasses,
+    # prevent names starting with '-' from being treated as bookmarks.
+    if (`$Name.StartsWith("-")) {
+        Write-Error "Invalid Parameter or Name: '`$Name' looks like a flag, not a bookmark name."
+        return
+    }
+
+    # --- 2. Version Check ---
     if (`$Version) {
-        Write-Host "Better-CD v1.0.0" -ForegroundColor Cyan
+        Write-Host "Better-CD v1.1.0" -ForegroundColor Cyan
         Write-Host "Author:  Chris" -ForegroundColor Gray
         Write-Host "License: MIT License" -ForegroundColor Gray
         return
     }
 
-    # [INJECTED PATH] This points to where you installed the tool
+    # [INJECTED PATH]
     `$exePath = "$exePathFound"
     
-    # Config stays in User Home (so bookmarks survive if you move the exe)
     `$configDir = "`$HOME\.better-cd"
     `$configFile = "`$configDir\bookmarks.json"
 
@@ -72,8 +87,8 @@ function b-cd {
     }
 
     # --- Safety Checks ---
-    if (`$n -and `$o) {
-        Write-Host "Error: Cannot use '-n' and '-o' together." -ForegroundColor Red
+    if ((`$n -and `$o) -or (`$in -and `$io)) {
+        Write-Host "Error: Conflicting flags used." -ForegroundColor Red
         return
     }
 
@@ -106,7 +121,55 @@ function b-cd {
         return
     }
 
-    # [Mode 3] Jump / New / Overwrite
+    # [Mode 3] Instant Operations (-in / -io)
+    if (`$in -or `$io) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) {
+             Write-Host "Error: Please specify a bookmark name." -ForegroundColor Red
+             return
+        }
+
+        `$finalPath = ""
+        if (-not [string]::IsNullOrWhiteSpace(`$PathInput)) {
+            if (Test-Path `$PathInput) {
+                `$finalPath = (Resolve-Path `$PathInput).Path
+            } else {
+                Write-Host "Error: The path '`$PathInput' does not exist." -ForegroundColor Red
+                return
+            }
+        } else {
+            `$finalPath = `$PWD.Path
+        }
+
+        # Instant New
+        if (`$in) {
+            if (`$bookmarks.ContainsKey(`$Name)) {
+                Write-Host "Error: Bookmark '`$Name' already exists!" -ForegroundColor Red
+                return
+            }
+            `$bookmarks[`$Name] = `$finalPath
+            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
+            Write-Host "Created: '`$Name' -> `$finalPath" -ForegroundColor Green
+            return
+        }
+
+        # Instant Overwrite
+        if (`$io) {
+            if (-not `$bookmarks.ContainsKey(`$Name)) {
+                Write-Host "Error: Bookmark '`$Name' does not exist." -ForegroundColor Red
+                return
+            }
+            `$oldPath = `$bookmarks[`$Name]
+            `$bookmarks[`$Name] = `$finalPath
+            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
+            
+            Write-Host "Updated: '`$Name'" -ForegroundColor Yellow
+            Write-Host "   From: `$oldPath" -ForegroundColor Gray
+            Write-Host "     To: `$finalPath" -ForegroundColor Green
+            return
+        }
+    }
+
+    # [Mode 4] GUI Operations
     `$targetPath = ""
     `$saveMode = `$false
     `$isUpdate = `$false
@@ -114,6 +177,7 @@ function b-cd {
     # Case A: Jump
     if (-not `$n -and -not `$o) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) {
+            # Only open GUI if Name is TRULY empty and no other flags triggered
             Write-Host "Opening folder picker..." -ForegroundColor Cyan
             `$raw = & `$exePath
             if (`$raw) { `$targetPath = `$raw.Trim() }
@@ -122,11 +186,10 @@ function b-cd {
             Write-Host "Rocket: Jumping to bookmark '`$Name'..." -ForegroundColor Green
         } else {
             Write-Host "Error: Bookmark '`$Name' not found." -ForegroundColor Red
-            Write-Host "Tips: Use '-n' for new, '-o' for overwrite." -ForegroundColor Yellow
             return
         }
     
-    # Case B: New
+    # Case B: New (GUI)
     } elseif (`$n) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "Error: Name required." -ForegroundColor Red; return }
         if (`$bookmarks.ContainsKey(`$Name)) {
@@ -136,7 +199,7 @@ function b-cd {
         Write-Host "New: Creating bookmark '`$Name'..." -ForegroundColor Cyan
         `$saveMode = `$true; `$isUpdate = `$false
 
-    # Case C: Overwrite
+    # Case C: Overwrite (GUI)
     } elseif (`$o) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "Error: Name required." -ForegroundColor Red; return }
         if (-not `$bookmarks.ContainsKey(`$Name)) {
@@ -147,7 +210,7 @@ function b-cd {
         `$saveMode = `$true; `$isUpdate = `$true
     }
 
-    # --- Save Execution ---
+    # --- Save Execution (GUI) ---
     if (`$saveMode) {
         `$raw = & `$exePath
         if (`$raw) {
@@ -186,13 +249,13 @@ function b-cd {
 "@
 
 # --- 4. Write to Profile ---
-
 $currentProfile = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+
 if ($currentProfile -match "Better-CD Start") {
-    Write-Host "Better-CD function already found in profile." -ForegroundColor Yellow
-    Write-Host "To update logic or path, please delete the old 'b-cd' block in your profile manually." -ForegroundColor Gray
+    Write-Host "Found existing Better-CD block. Please manually check your profile or delete the old block first." -ForegroundColor Yellow
+    Write-Host "   Path: $profilePath" -ForegroundColor Gray
 } else {
     Add-Content -Path $profilePath -Value $functionScript
     Write-Host "Function registered! Pointing to: $exePathFound" -ForegroundColor Green
-    Write-Host "Installation Complete! Restart terminal to use 'b-cd'." -ForegroundColor Cyan
+    Write-Host "Installation Complete! Restart your shell and Try: b-cd -version" -ForegroundColor Cyan
 }
