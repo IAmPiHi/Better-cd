@@ -64,11 +64,10 @@ Manage bookmarks quickly without opening the GUI window.
 ```powershell
 ### Save the CURRENT directory as 'work'
 b-cd -in work
-```
 
-### Save a SPECIFIC path as 'game'
+# Save a SPECIFIC path as 'game'
 b-cd -in game "D:\Games\SteamLibrary"
-```
+
 Overwrite Existing Bookmark (-io)
 
 ```PowerShell
