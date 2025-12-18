@@ -24,17 +24,18 @@ $functionScript = @"
 
 # --- Better-CD Start ---
 function b-cd {
-    [CmdletBinding()] # <--- [NEW] Enforces strict parameter checking
+    [CmdletBinding()] 
     param (
         [Parameter(Position=0)]
         [string]`$Name = "",
         
         [Parameter(Position=1)]
-        [string]`$PathInput = "", 
+        [string]`$PathInput = "", # Used as 'New Name' for -rn
         
         [switch]`$n,       # GUI New
         [switch]`$o,       # GUI Overwrite
         [switch]`$d,       # Delete
+        [switch]`$rn,      # [NEW] Rename
         [switch]`$list,    # List
         [switch]`$in,      # Instant New
         [switch]`$io,      # Instant Overwrite
@@ -42,11 +43,6 @@ function b-cd {
     )
 
     # --- 1. Strict Parameter Validation ---
-    # If the user typed a flag that doesn't exist (like -dsadha), 
-    # [CmdletBinding()] above handles the error automatically before code runs.
-    
-    # Extra Check: If User types 'b-cd -invalid' inside quotes or somehow bypasses,
-    # prevent names starting with '-' from being treated as bookmarks.
     if (`$Name.StartsWith("-")) {
         Write-Error "Invalid Parameter or Name: '`$Name' looks like a flag, not a bookmark name."
         return
@@ -54,7 +50,7 @@ function b-cd {
 
     # --- 2. Version Check ---
     if (`$Version) {
-        Write-Host "Better-CD v1.1.0" -ForegroundColor Cyan
+        Write-Host "Better-CD v1.2.0" -ForegroundColor Cyan
         Write-Host "Author:  Chris" -ForegroundColor Gray
         Write-Host "License: MIT License" -ForegroundColor Gray
         return
@@ -87,6 +83,11 @@ function b-cd {
     }
 
     # --- Safety Checks ---
+    # Ensure -rn isn't mixed with other mode flags
+    if (`$rn -and (`$n -or `$o -or `$d -or `$in -or `$io)) {
+         Write-Host "Error: Conflicting flags used with -rn." -ForegroundColor Red
+         return
+    }
     if ((`$n -and `$o) -or (`$in -and `$io)) {
         Write-Host "Error: Conflicting flags used." -ForegroundColor Red
         return
@@ -94,7 +95,45 @@ function b-cd {
 
     # --- Logic ---
 
-    # [Mode 1] Delete
+    # [Mode 1] Rename (-rn) [NEW BLOCK]
+    if (`$rn) {
+        # Usage: b-cd -rn <old> <new>
+        if ([string]::IsNullOrWhiteSpace(`$Name) -or [string]::IsNullOrWhiteSpace(`$PathInput)) {
+            Write-Host "Error: Usage is 'b-cd -rn <old_name> <new_name>'" -ForegroundColor Red
+            return
+        }
+
+        # Check existence
+        if (-not `$bookmarks.ContainsKey(`$Name)) {
+            Write-Host "Error: Bookmark '`$Name' does not exist." -ForegroundColor Red
+            return
+        }
+        if (`$bookmarks.ContainsKey(`$PathInput)) {
+            Write-Host "Error: The new name '`$PathInput' is already taken." -ForegroundColor Red
+            return
+        }
+
+        `$currentPath = `$bookmarks[`$Name]
+
+        # Confirmation Prompt
+        Write-Host "Rename: '`$Name' -> '`$PathInput'" -ForegroundColor Yellow
+        Write-Host "Target: `$currentPath" -ForegroundColor Gray
+        
+        `$confirm = Read-Host "Type 'v' to confirm"
+        
+        # PowerShell -eq is case-insensitive by default (v == V)
+        if (`$confirm -eq "v") {
+            `$bookmarks[`$PathInput] = `$currentPath
+            `$bookmarks.Remove(`$Name)
+            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
+            Write-Host "Success: Renamed to '`$PathInput'." -ForegroundColor Green
+        } else {
+            Write-Host "Cancelled." -ForegroundColor Gray
+        }
+        return
+    }
+
+    # [Mode 2] Delete
     if (`$d) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) {
             Write-Host "Error: Specify a name to delete." -ForegroundColor Red
@@ -110,7 +149,7 @@ function b-cd {
         return
     }
 
-    # [Mode 2] List
+    # [Mode 3] List
     if (`$list) {
         if (`$bookmarks.Count -eq 0) {
             Write-Host "Empty: No bookmarks saved yet." -ForegroundColor Red
@@ -121,7 +160,7 @@ function b-cd {
         return
     }
 
-    # [Mode 3] Instant Operations (-in / -io)
+    # [Mode 4] Instant Operations (-in / -io)
     if (`$in -or `$io) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) {
              Write-Host "Error: Please specify a bookmark name." -ForegroundColor Red
@@ -169,7 +208,7 @@ function b-cd {
         }
     }
 
-    # [Mode 4] GUI Operations
+    # [Mode 5] GUI Operations
     `$targetPath = ""
     `$saveMode = `$false
     `$isUpdate = `$false
@@ -177,7 +216,6 @@ function b-cd {
     # Case A: Jump
     if (-not `$n -and -not `$o) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) {
-            # Only open GUI if Name is TRULY empty and no other flags triggered
             Write-Host "Opening folder picker..." -ForegroundColor Cyan
             `$raw = & `$exePath
             if (`$raw) { `$targetPath = `$raw.Trim() }
