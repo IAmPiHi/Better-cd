@@ -89,6 +89,10 @@ Delete a bookmark:
 ```powerShell
 b-cd -d game
 ```
+Rename a bookmark:
+```powershell
+b-cd -rn <orginal> <new>
+```
 
 ### 7. Check Version
 ```powerShell
