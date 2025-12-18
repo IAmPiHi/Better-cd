@@ -66,7 +66,7 @@ Manage bookmarks quickly without opening the GUI window.
 b-cd -in work
 ```
 
-# Save a SPECIFIC path as 'game'
+### Save a SPECIFIC path as 'game'
 b-cd -in game "D:\Games\SteamLibrary"
 ```
 Overwrite Existing Bookmark (-io)
