@@ -57,8 +57,30 @@ Updates an existing bookmark with a new path. Returns an error if "game" does no
 ```powerShell
 b-cd -o game
 ```
+### 5. ⚡ Instant Mode (CLI Only)
+Manage bookmarks quickly without opening the GUI window.
 
-### 5. Manage Bookmarks
+**Create New Bookmark (`-in`)**
+```powershell
+# Save the CURRENT directory as 'work'
+b-cd -in work
+```
+
+# Save a SPECIFIC path as 'game'
+b-cd -in game "D:\Games\SteamLibrary"
+```
+Overwrite Existing Bookmark (-io)
+
+```PowerShell
+
+# Update 'work' to point to the CURRENT directory
+b-cd -io work
+
+# Update 'game' to point to a new path
+b-cd -io game "E:\NewLibrary"
+```
+
+### 6. Manage Bookmarks
 List all saved bookmarks:
 ```powerShell
 b-cd -list
@@ -68,7 +90,7 @@ Delete a bookmark:
 b-cd -d game
 ```
 
-### 6. Check Version
+### 7. Check Version
 ```powerShell
 b-cd -Version
 ```
