@@ -110,7 +110,7 @@ b-cd -list name #check the list of specific workspace
 
 b-cd -dw name #delete a workspace
 
-b-cd -rw oldname newname #rename
+b-cd -rw newname #rename this current workspace
 
 b-cd clear #delete all bookmarks in current workspace
 
