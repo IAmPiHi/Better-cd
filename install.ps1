@@ -1,17 +1,17 @@
 # install.ps1
 
-Write-Host "Installing Better-CD..." -ForegroundColor Cyan
+Write-Host "[INSTALL] Installing Better-CD..." -ForegroundColor Cyan
 
 # --- 1. Locate the Executable (Dynamic) ---
 $currentDir = $PSScriptRoot
 $exePathFound = Join-Path -Path $currentDir -ChildPath "\bin\better-cd-core.exe"
 
 if (-not (Test-Path $exePathFound)) {
-    Write-Host "Error: 'better-cd-core.exe' not found in: $currentDir" -ForegroundColor Red
+    Write-Host "[ERROR] 'better-cd-core.exe' not found in: $currentDir" -ForegroundColor Red
     exit
 }
 
-Write-Host "Detected installation path: $currentDir" -ForegroundColor Gray
+Write-Host "[INFO] Detected installation path: $currentDir" -ForegroundColor Gray
 
 # --- 2. Prepare Profile Path ---
 $profilePath = $PROFILE
@@ -30,27 +30,27 @@ function b-cd {
         [string]`$Name = "",
         
         [Parameter(Position=1)]
-        [string]`$PathInput = "", # Used as 'New Name' for -rn
+        [string]`$PathInput = "", 
         
         [switch]`$n,       # GUI New
         [switch]`$o,       # GUI Overwrite
         [switch]`$d,       # Delete
-        [switch]`$rn,      # [NEW] Rename
-        [switch]`$list,    # List
+        [switch]`$rn,      # Rename Bookmark
+        [switch]`$list,    # List bookmarks
         [switch]`$in,      # Instant New
         [switch]`$io,      # Instant Overwrite
+        [switch]`$clear,   # Clear All Bookmarks
+        [switch]`$sw,      # Switch Workspace
+        [switch]`$nw,      # New Workspace
+        [switch]`$dw,      # Delete Workspace
+        [switch]`$rw,      # [NEW] Rename Workspace
+        [switch]`$wlist,   # List Workspaces
         [switch]`$Version  # Version
     )
 
-    # --- 1. Strict Parameter Validation ---
-    if (`$Name.StartsWith("-")) {
-        Write-Error "Invalid Parameter or Name: '`$Name' looks like a flag, not a bookmark name."
-        return
-    }
-
-    # --- 2. Version Check ---
+    # --- Version Check ---
     if (`$Version) {
-        Write-Host "Better-CD v1.2.0" -ForegroundColor Cyan
+        Write-Host "Better-CD v1.4.0" -ForegroundColor Cyan
         Write-Host "Author:  Chris" -ForegroundColor Gray
         Write-Host "License: MIT License" -ForegroundColor Gray
         return
@@ -58,229 +58,330 @@ function b-cd {
 
     # [INJECTED PATH]
     `$exePath = "$exePathFound"
-    
     `$configDir = "`$HOME\.better-cd"
-    `$configFile = "`$configDir\bookmarks.json"
-
+    
     # --- Initialization ---
     if (-not (Test-Path `$configDir)) { New-Item -ItemType Directory -Path `$configDir | Out-Null }
+
+    # [Profile System]
+    `$activeProfileFile = "`$configDir\_active_profile.txt"
     
-    `$bookmarks = @{}
-    if (Test-Path `$configFile) {
-        try {
-            `$content = Get-Content `$configFile -Raw
-            if (-not [string]::IsNullOrWhiteSpace(`$content)) {
-                `$jsonObj = `$content | ConvertFrom-Json
-                if (`$jsonObj) {
-                    foreach (`$prop in `$jsonObj.PSObject.Properties) {
-                        `$bookmarks[`$prop.Name] = `$prop.Value
+    # Default to 'bookmarks' if no active profile is set
+    if (-not (Test-Path `$activeProfileFile)) { Set-Content `$activeProfileFile "bookmarks" }
+    
+    `$currentProfileName = (Get-Content `$activeProfileFile -Raw).Trim()
+    if ([string]::IsNullOrWhiteSpace(`$currentProfileName)) { `$currentProfileName = "bookmarks" }
+
+    `$currentJsonPath = "`$configDir\`$currentProfileName.json"
+
+    # --- Helper Function: Load Bookmarks from a specific file ---
+    function Get-BookmarksFromFile(`$path) {
+        `$b = @{}
+        if (Test-Path `$path) {
+            try {
+                `$c = Get-Content `$path -Raw
+                if (-not [string]::IsNullOrWhiteSpace(`$c)) {
+                    `$j = `$c | ConvertFrom-Json
+                    if (`$j) {
+                        foreach (`$p in `$j.PSObject.Properties) { `$b[`$p.Name] = `$p.Value }
                     }
                 }
-            }
-        } catch {
-            Write-Host "Warning: Could not read bookmarks. Starting fresh." -ForegroundColor Yellow
+            } catch {}
         }
+        return `$b
     }
 
-    # --- Safety Checks ---
-    # Ensure -rn isn't mixed with other mode flags
-    if (`$rn -and (`$n -or `$o -or `$d -or `$in -or `$io)) {
-         Write-Host "Error: Conflicting flags used with -rn." -ForegroundColor Red
-         return
+    # --- Helper Function: Save Bookmarks to current file ---
+    function Save-Bookmarks(`$data) {
+        `$data | ConvertTo-Json | Set-Content `$currentJsonPath
     }
-    if ((`$n -and `$o) -or (`$in -and `$io)) {
-        Write-Host "Error: Conflicting flags used." -ForegroundColor Red
+
+    # --- Load CURRENT Bookmarks (Needed for display/logic) ---
+    `$bookmarks = Get-BookmarksFromFile `$currentJsonPath
+
+    # --- Mode: Workspace Operations ---
+    
+    # 1. List Workspaces (-wlist)
+    if (`$wlist) {
+        Write-Host "--- Available Profiles (JSON) ---" -ForegroundColor Cyan
+        `$files = Get-ChildItem -Path `$configDir -Filter "*.json"
+        if (`$files.Count -eq 0) {
+            Write-Host "[INFO] No profiles found." -ForegroundColor Red
+        } else {
+            foreach (`$f in `$files) {
+                `$baseName = `$f.BaseName
+                if (`$baseName -eq `$currentProfileName) {
+                     Write-Host " * `$baseName (Active)" -ForegroundColor Green
+                } else {
+                     Write-Host "   `$baseName" -ForegroundColor Gray
+                }
+            }
+        }
         return
     }
 
-    # --- Logic ---
-
-    # [Mode 1] Rename (-rn) [NEW BLOCK]
-    if (`$rn) {
-        # Usage: b-cd -rn <old> <new>
-        if ([string]::IsNullOrWhiteSpace(`$Name) -or [string]::IsNullOrWhiteSpace(`$PathInput)) {
-            Write-Host "Error: Usage is 'b-cd -rn <old_name> <new_name>'" -ForegroundColor Red
-            return
+    # 2. New Workspace (-nw)
+    if (`$nw) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Specify a name for the new profile." -ForegroundColor Red; return }
+        `$targetFile = "`$configDir\`$Name.json"
+        if (Test-Path `$targetFile) {
+            Write-Host "[ERROR] Profile '`$Name' already exists." -ForegroundColor Red
+        } else {
+            "{}" | Set-Content `$targetFile
+            Write-Host "[SUCCESS] Profile '`$Name' created." -ForegroundColor Green
+            Write-Host "Tip: Use 'b-cd -sw `$Name' to switch to it." -ForegroundColor Gray
         }
+        return
+    }
 
-        # Check existence
-        if (-not `$bookmarks.ContainsKey(`$Name)) {
-            Write-Host "Error: Bookmark '`$Name' does not exist." -ForegroundColor Red
-            return
+    # 3. Switch Workspace (-sw)
+    if (`$sw) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Specify a profile name to switch to." -ForegroundColor Red; return }
+        `$targetFile = "`$configDir\`$Name.json"
+        if (-not (Test-Path `$targetFile)) {
+            Write-Host "[ERROR] Profile '`$Name' does not exist." -ForegroundColor Red
+        } else {
+            Set-Content `$activeProfileFile `$Name
+            Write-Host "[SWITCH] Active profile: '`$Name'" -ForegroundColor Green
+            
+            # Show list of the new profile
+            `$newB = Get-BookmarksFromFile `$targetFile
+            if (`$newB.Count -gt 0) {
+                Write-Host "--- Bookmarks in '`$Name' ---" -ForegroundColor Cyan
+                `$newB.GetEnumerator() | Format-Table -AutoSize
+            } else {
+                Write-Host "[INFO] This profile is empty." -ForegroundColor Yellow
+            }
         }
-        if (`$bookmarks.ContainsKey(`$PathInput)) {
-            Write-Host "Error: The new name '`$PathInput' is already taken." -ForegroundColor Red
-            return
-        }
+        return
+    }
 
-        `$currentPath = `$bookmarks[`$Name]
-
-        # Confirmation Prompt
-        Write-Host "Rename: '`$Name' -> '`$PathInput'" -ForegroundColor Yellow
-        Write-Host "Target: `$currentPath" -ForegroundColor Gray
+    # 4. Rename Workspace (-rw) [NEW]
+    if (`$rw) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Specify a new name for the current profile." -ForegroundColor Red; return }
         
-        `$confirm = Read-Host "Type 'v' to confirm"
+        `$newJsonFile = "`$configDir\`$Name.json"
         
-        # PowerShell -eq is case-insensitive by default (v == V)
+        # Check collision
+        if (Test-Path `$newJsonFile) {
+            Write-Host "[ERROR] A profile named '`$Name' already exists." -ForegroundColor Red
+            return
+        }
+
+        # Show context
+        Write-Host "--- Renaming Current Workspace ---" -ForegroundColor Yellow
+        Write-Host "From: `$currentProfileName" -ForegroundColor Gray
+        Write-Host "  To: `$Name" -ForegroundColor Cyan
+        
+        if (`$bookmarks.Count -gt 0) {
+            `$bookmarks.GetEnumerator() | Format-Table -AutoSize
+        } else {
+            Write-Host "(Empty Profile)" -ForegroundColor Gray
+        }
+
+        # Confirm
+        `$confirm = Read-Host "Type 'v' to confirm rename"
         if (`$confirm -eq "v") {
-            `$bookmarks[`$PathInput] = `$currentPath
-            `$bookmarks.Remove(`$Name)
-            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
-            Write-Host "Success: Renamed to '`$PathInput'." -ForegroundColor Green
+            try {
+                Move-Item -Path `$currentJsonPath -Destination `$newJsonFile -Force
+                Set-Content `$activeProfileFile `$Name
+                Write-Host "[SUCCESS] Profile renamed to '`$Name'." -ForegroundColor Green
+            } catch {
+                Write-Host "[ERROR] Failed to rename file." -ForegroundColor Red
+            }
         } else {
             Write-Host "Cancelled." -ForegroundColor Gray
         }
         return
     }
 
-    # [Mode 2] Delete
-    if (`$d) {
-        if ([string]::IsNullOrWhiteSpace(`$Name)) {
-            Write-Host "Error: Specify a name to delete." -ForegroundColor Red
+    # 5. Delete Workspace (-dw)
+    if (`$dw) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Specify a profile name to delete." -ForegroundColor Red; return }
+        `$targetFile = "`$configDir\`$Name.json"
+        
+        if (`$Name -eq `$currentProfileName) {
+            Write-Host "[ERROR] Cannot delete the currently active profile." -ForegroundColor Red
+            Write-Host "Tip: Switch to another profile first." -ForegroundColor Gray
             return
         }
+
+        if (-not (Test-Path `$targetFile)) {
+            Write-Host "[ERROR] Profile '`$Name' does not exist." -ForegroundColor Red
+            return
+        }
+
+        # Load content to show user what they are deleting
+        `$delB = Get-BookmarksFromFile `$targetFile
+        Write-Host "--- Deleting Profile: `$Name ---" -ForegroundColor Red
+        if (`$delB.Count -gt 0) {
+            `$delB.GetEnumerator() | Format-Table -AutoSize
+        } else {
+            Write-Host "(Empty Profile)" -ForegroundColor Gray
+        }
+        
+        `$confirm = Read-Host "Are you sure? This cannot be undone. Type 'v' to confirm"
+        if (`$confirm -eq "v") {
+            Remove-Item `$targetFile -Force
+            Write-Host "[DELETE] Profile '`$Name' deleted." -ForegroundColor Yellow
+        } else {
+            Write-Host "Cancelled." -ForegroundColor Gray
+        }
+        return
+    }
+
+    # --- Standard Operations ---
+
+    # [Mode] List (-list)
+    if (`$list) {
+        `$targetListName = `$currentProfileName
+        `$targetListObj = `$bookmarks
+
+        if (-not [string]::IsNullOrWhiteSpace(`$Name)) {
+            # User wants to peek at another list
+            `$peekFile = "`$configDir\`$Name.json"
+            if (Test-Path `$peekFile) {
+                `$targetListName = `$Name
+                `$targetListObj = Get-BookmarksFromFile `$peekFile
+            } else {
+                Write-Host "[ERROR] Profile '`$Name' not found." -ForegroundColor Red
+                return
+            }
+        }
+
+        if (`$targetListObj.Count -eq 0) {
+            Write-Host "[INFO] Profile '`$targetListName' is empty." -ForegroundColor Yellow
+        } else {
+            Write-Host "--- Bookmarks (`$targetListName) ---" -ForegroundColor Cyan
+            `$targetListObj.GetEnumerator() | Format-Table -AutoSize
+        }
+        return
+    }
+
+    # [Mode] Clear All (-clear)
+    if (`$clear) {
+        if (`$bookmarks.Count -eq 0) {
+            Write-Host "[INFO] Current list is already empty." -ForegroundColor Gray
+            return
+        }
+        Write-Host "--- WARNING: CLEARING ALL BOOKMARKS ---" -ForegroundColor Red
+        Write-Host "Current Profile: `$currentProfileName" -ForegroundColor Yellow
+        `$bookmarks.GetEnumerator() | Format-Table -AutoSize
+        
+        `$confirm = Read-Host "Type 'v' to confirm deletion of ALL bookmarks above"
+        if (`$confirm -eq "v") {
+            `$bookmarks = @{}
+            Save-Bookmarks `$bookmarks
+            Write-Host "[SUCCESS] All bookmarks cleared." -ForegroundColor Green
+        } else {
+            Write-Host "Cancelled." -ForegroundColor Gray
+        }
+        return
+    }
+
+    # [Mode] Rename Bookmark (-rn)
+    if (`$rn) {
+        if ([string]::IsNullOrWhiteSpace(`$Name) -or [string]::IsNullOrWhiteSpace(`$PathInput)) {
+            Write-Host "[ERROR] Usage is 'b-cd -rn <old> <new>'" -ForegroundColor Red
+            return
+        }
+        if (-not `$bookmarks.ContainsKey(`$Name)) { Write-Host "[ERROR] Bookmark '`$Name' not found." -ForegroundColor Red; return }
+        if (`$bookmarks.ContainsKey(`$PathInput)) { Write-Host "[ERROR] Name '`$PathInput' already taken." -ForegroundColor Red; return }
+
+        `$path = `$bookmarks[`$Name]
+        Write-Host "Rename: '`$Name' -> '`$PathInput'" -ForegroundColor Yellow
+        Write-Host "Target: `$path" -ForegroundColor Gray
+        
+        if ((Read-Host "Type 'v' to confirm") -eq "v") {
+            `$bookmarks[`$PathInput] = `$path
+            `$bookmarks.Remove(`$Name)
+            Save-Bookmarks `$bookmarks
+            Write-Host "[SUCCESS] Renamed." -ForegroundColor Green
+        } else {
+            Write-Host "Cancelled." -ForegroundColor Gray
+        }
+        return
+    }
+
+    # [Mode] Delete Bookmark (-d)
+    if (`$d) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Name required." -ForegroundColor Red; return }
         if (`$bookmarks.ContainsKey(`$Name)) {
             `$bookmarks.Remove(`$Name)
-            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
-            Write-Host "Trash: Bookmark '`$Name' deleted." -ForegroundColor Yellow
+            Save-Bookmarks `$bookmarks
+            Write-Host "[DELETE] Bookmark '`$Name' removed." -ForegroundColor Yellow
         } else {
-            Write-Host "Warning: Bookmark '`$Name' not found." -ForegroundColor Red
+            Write-Host "[ERROR] Bookmark '`$Name' not found." -ForegroundColor Red
         }
         return
     }
 
-    # [Mode 3] List
-    if (`$list) {
-        if (`$bookmarks.Count -eq 0) {
-            Write-Host "Empty: No bookmarks saved yet." -ForegroundColor Red
-        } else {
-            Write-Host "--- Saved Bookmarks ---" -ForegroundColor Cyan
-            `$bookmarks.GetEnumerator() | Format-Table -AutoSize
-        }
-        return
-    }
-
-    # [Mode 4] Instant Operations (-in / -io)
+    # [Mode] Instant Operations (-in / -io)
     if (`$in -or `$io) {
-        if ([string]::IsNullOrWhiteSpace(`$Name)) {
-             Write-Host "Error: Please specify a bookmark name." -ForegroundColor Red
-             return
-        }
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Name required." -ForegroundColor Red; return }
+        
+        `$finalPath = if (-not [string]::IsNullOrWhiteSpace(`$PathInput)) { (Resolve-Path `$PathInput).Path } else { `$PWD.Path }
+        if (-not (Test-Path `$finalPath)) { Write-Host "[ERROR] Path not found." -ForegroundColor Red; return }
 
-        `$finalPath = ""
-        if (-not [string]::IsNullOrWhiteSpace(`$PathInput)) {
-            if (Test-Path `$PathInput) {
-                `$finalPath = (Resolve-Path `$PathInput).Path
-            } else {
-                Write-Host "Error: The path '`$PathInput' does not exist." -ForegroundColor Red
-                return
-            }
-        } else {
-            `$finalPath = `$PWD.Path
-        }
-
-        # Instant New
         if (`$in) {
-            if (`$bookmarks.ContainsKey(`$Name)) {
-                Write-Host "Error: Bookmark '`$Name' already exists!" -ForegroundColor Red
-                return
-            }
+            if (`$bookmarks.ContainsKey(`$Name)) { Write-Host "[ERROR] '`$Name' exists." -ForegroundColor Red; return }
             `$bookmarks[`$Name] = `$finalPath
-            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
-            Write-Host "Created: '`$Name' -> `$finalPath" -ForegroundColor Green
-            return
-        }
-
-        # Instant Overwrite
-        if (`$io) {
-            if (-not `$bookmarks.ContainsKey(`$Name)) {
-                Write-Host "Error: Bookmark '`$Name' does not exist." -ForegroundColor Red
-                return
-            }
-            `$oldPath = `$bookmarks[`$Name]
+            Save-Bookmarks `$bookmarks
+            Write-Host "[CREATED] '`$Name' -> `$finalPath" -ForegroundColor Green
+        } elseif (`$io) {
+            if (-not `$bookmarks.ContainsKey(`$Name)) { Write-Host "[ERROR] '`$Name' not found." -ForegroundColor Red; return }
+            `$old = `$bookmarks[`$Name]
             `$bookmarks[`$Name] = `$finalPath
-            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
-            
-            Write-Host "Updated: '`$Name'" -ForegroundColor Yellow
-            Write-Host "   From: `$oldPath" -ForegroundColor Gray
-            Write-Host "     To: `$finalPath" -ForegroundColor Green
-            return
+            Save-Bookmarks `$bookmarks
+            Write-Host "[UPDATED] '`$Name' (`$old -> `$finalPath)" -ForegroundColor Yellow
         }
+        return
     }
 
-    # [Mode 5] GUI Operations
+    # [Mode] GUI Operations ($n, $o, Jump)
     `$targetPath = ""
     `$saveMode = `$false
     `$isUpdate = `$false
 
-    # Case A: Jump
     if (-not `$n -and -not `$o) {
+        # Jump
         if ([string]::IsNullOrWhiteSpace(`$Name)) {
             Write-Host "Opening folder picker..." -ForegroundColor Cyan
-            `$raw = & `$exePath
-            if (`$raw) { `$targetPath = `$raw.Trim() }
+            `$raw = & `$exePath; if (`$raw) { `$targetPath = `$raw.Trim() }
         } elseif (`$bookmarks.ContainsKey(`$Name)) {
             `$targetPath = `$bookmarks[`$Name]
-            Write-Host "Rocket: Jumping to bookmark '`$Name'..." -ForegroundColor Green
+            Write-Host "[JUMP] Jumping to '`$Name'..." -ForegroundColor Green
         } else {
-            Write-Host "Error: Bookmark '`$Name' not found." -ForegroundColor Red
+            Write-Host "[ERROR] Bookmark '`$Name' not found." -ForegroundColor Red
             return
         }
-    
-    # Case B: New (GUI)
     } elseif (`$n) {
-        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "Error: Name required." -ForegroundColor Red; return }
-        if (`$bookmarks.ContainsKey(`$Name)) {
-            Write-Host "Error: Bookmark '`$Name' already exists!" -ForegroundColor Red
-            return
-        }
-        Write-Host "New: Creating bookmark '`$Name'..." -ForegroundColor Cyan
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Name required." -ForegroundColor Red; return }
+        if (`$bookmarks.ContainsKey(`$Name)) { Write-Host "[ERROR] Exists." -ForegroundColor Red; return }
+        Write-Host "[NEW] Pick a folder for '`$Name'..." -ForegroundColor Cyan
         `$saveMode = `$true; `$isUpdate = `$false
-
-    # Case C: Overwrite (GUI)
     } elseif (`$o) {
-        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "Error: Name required." -ForegroundColor Red; return }
-        if (-not `$bookmarks.ContainsKey(`$Name)) {
-            Write-Host "Error: Bookmark '`$Name' not found." -ForegroundColor Red
-            return
-        }
-        Write-Host "Refresh: Overwriting bookmark '`$Name'..." -ForegroundColor Yellow
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Name required." -ForegroundColor Red; return }
+        if (-not `$bookmarks.ContainsKey(`$Name)) { Write-Host "[ERROR] Not found." -ForegroundColor Red; return }
+        Write-Host "[OVERWRITE] Pick new folder for '`$Name'..." -ForegroundColor Yellow
         `$saveMode = `$true; `$isUpdate = `$true
     }
 
-    # --- Save Execution (GUI) ---
     if (`$saveMode) {
         `$raw = & `$exePath
-        if (`$raw) {
-            `$picked = `$raw.Trim()
-            if (-not [string]::IsNullOrWhiteSpace(`$picked)) {
-                `$targetPath = `$picked
-                `$oldPath = ""; if (`$isUpdate) { `$oldPath = `$bookmarks[`$Name] }
-                
-                `$bookmarks[`$Name] = `$targetPath
-                `$bookmarks | ConvertTo-Json | Set-Content `$configFile
-                
-                if (`$isUpdate) {
-                    Write-Host "Updated: '`$Name'" -ForegroundColor Yellow
-                    Write-Host "   From: `$oldPath" -ForegroundColor Gray
-                    Write-Host "     To: `$targetPath" -ForegroundColor Green
-                } else {
-                    Write-Host "Created: '`$Name' -> `$targetPath" -ForegroundColor Green
-                }
-            }
+        if (`$raw -and (`$picked = `$raw.Trim())) {
+            `$targetPath = `$picked
+            `$bookmarks[`$Name] = `$targetPath
+            Save-Bookmarks `$bookmarks
+            Write-Host "[SAVED] '`$Name' -> `$targetPath" -ForegroundColor Green
         } else {
-            Write-Host "Action Cancelled." -ForegroundColor Gray
-            `$targetPath = ""
+            Write-Host "Cancelled." -ForegroundColor Gray; `$targetPath = ""
         }
     }
 
-    # --- Jump Execution ---
     if (-not [string]::IsNullOrWhiteSpace(`$targetPath)) {
-        if (Test-Path -LiteralPath "`$targetPath") {
-            Set-Location -LiteralPath "`$targetPath"
-        } else {
-            Write-Host "Error: Path '`$targetPath' not found!" -ForegroundColor Red
-        }
+        if (Test-Path -LiteralPath `$targetPath) { Set-Location -LiteralPath `$targetPath }
+        else { Write-Host "[ERROR] Path not found." -ForegroundColor Red }
     }
 }
 # --- Better-CD End ---
@@ -290,10 +391,10 @@ function b-cd {
 $currentProfile = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
 
 if ($currentProfile -match "Better-CD Start") {
-    Write-Host "Found existing Better-CD block. Please manually check your profile or delete the old block first." -ForegroundColor Yellow
-    Write-Host "   Path: $profilePath" -ForegroundColor Gray
+    Write-Host "[WARN] Found existing Better-CD block. Please manually check your profile or delete the old block first." -ForegroundColor Yellow
+    Write-Host "       Path: $profilePath" -ForegroundColor Gray
 } else {
     Add-Content -Path $profilePath -Value $functionScript
-    Write-Host "Function registered! Pointing to: $exePathFound" -ForegroundColor Green
-    Write-Host "Installation Complete! Restart your shell and Try: b-cd -version" -ForegroundColor Cyan
+    Write-Host "[SUCCESS] Function registered! Pointing to: $exePathFound" -ForegroundColor Green
+    Write-Host "[DONE] Installation Complete! Try: b-cd -rw newname" -ForegroundColor Cyan
 }
