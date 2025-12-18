@@ -19,7 +19,7 @@
 ## 📦 Installation
 
 ### 1. Download & Place
-Download the release and unzip the folder to your preferred location (e.g., `C:\Tools\Better-cd` or `%LOCALAPPDATA%\Programs\Better-cd`).
+Download and unzip to your preferred location. Note: Do not move this folder after installation.
 
 ### 2. Run Installer
 1. Open the folder.
