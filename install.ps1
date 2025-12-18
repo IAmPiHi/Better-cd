@@ -2,53 +2,202 @@
 
 Write-Host "🚀 Installing Better-CD..." -ForegroundColor Cyan
 
-# 1. 設定安裝路徑 (預設裝在使用者家目錄下的 .better-cd)
-$installDir = "$HOME\.better-cd"
-if (-not (Test-Path $installDir)) {
-    New-Item -ItemType Directory -Path $installDir | Out-Null
-}
+# --- 1. Locate the Executable (Dynamic) ---
+# 取得目前這個 install.ps1 所在的資料夾路徑
+$currentDir = $PSScriptRoot
 
-# 2. 下載或複製執行檔
-# (假設使用者是把整個 repo 下載下來，exe 就在旁邊)
-# 如果你是發布到網路，這裡可以用 Invoke-WebRequest 去下載
-$exeSource = "$PSScriptRoot\better-cd-core.exe" 
+# 假設 exe 就在 install.ps1 旁邊
+$exePathFound = Join-Path -Path $currentDir -ChildPath "better-cd-core.exe"
 
-if (Test-Path $exeSource) {
-    Copy-Item -Path $exeSource -Destination "$installDir\better-cd-core.exe" -Force
-    Write-Host "✅ Core executable installed to $installDir" -ForegroundColor Green
-} else {
-    Write-Host "❌ Error: better-cd-core.exe not found in current folder!" -ForegroundColor Red
+# 檢查檔案是否真的存在
+if (-not (Test-Path $exePathFound)) {
+    Write-Host "❌ Error: 'better-cd-core.exe' not found in: $currentDir" -ForegroundColor Red
+    Write-Host "   Please ensure the .exe is in the same folder as this script." -ForegroundColor Gray
     exit
 }
 
-# 3. 把函數寫入 PowerShell Profile
+Write-Host "📍 Detected installation path: $currentDir" -ForegroundColor Gray
+
+# --- 2. Prepare Profile Path ---
 $profilePath = $PROFILE
 if (-not (Test-Path $profilePath)) {
     New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
 
-# 定義要寫入的函數內容
+# --- 3. Construct the Function (Injecting the Path) ---
+# 重點：我們要把 $exePathFound (安裝當下的絕對路徑) 寫死進去
+# 注意：Here-String 中的變數：
+#       $var      -> 會被替換成安裝時的值 (例如路徑)
+#       `$var     -> 會保留字串形式 (例如參數 $Name, $o)
+
 $functionScript = @"
 
 # --- Better-CD Start ---
 function b-cd {
-    `$targetPath = (& "$installDir\better-cd-core.exe").Trim()
+    param (
+        [string]`$Name = "",
+        [switch]`$n,  # New
+        [switch]`$o,  # Overwrite
+        [switch]`$d,  # Delete
+        [switch]`$list # List
+        [switch]`$Version  # <--- [NEW] Version Flag
+    )
+    if (`$Version) {
+        Write-Host "Better-CD v1.0.0" -ForegroundColor Cyan
+        Write-Host "Author:  Chris" -ForegroundColor Gray
+        Write-Host "License: MIT License" -ForegroundColor Gray
+        return
+    }
+
+    # [INJECTED PATH] This points to where you installed the tool
+    `$exePath = "$exePathFound"
+    
+    # Config stays in User Home (so bookmarks survive if you move the exe)
+    `$configDir = "`$HOME\.better-cd"
+    `$configFile = "`$configDir\bookmarks.json"
+
+    # --- Initialization ---
+    if (-not (Test-Path `$configDir)) { New-Item -ItemType Directory -Path `$configDir | Out-Null }
+    
+    `$bookmarks = @{}
+    if (Test-Path `$configFile) {
+        try {
+            `$content = Get-Content `$configFile -Raw
+            if (-not [string]::IsNullOrWhiteSpace(`$content)) {
+                `$jsonObj = `$content | ConvertFrom-Json
+                if (`$jsonObj) {
+                    foreach (`$prop in `$jsonObj.PSObject.Properties) {
+                        `$bookmarks[`$prop.Name] = `$prop.Value
+                    }
+                }
+            }
+        } catch {
+            Write-Host "Warning: Could not read bookmarks. Starting fresh." -ForegroundColor Yellow
+        }
+    }
+
+    # --- Safety Checks ---
+    if (`$n -and `$o) {
+        Write-Host "Error: Cannot use '-n' and '-o' together." -ForegroundColor Red
+        return
+    }
+
+    # --- Logic ---
+
+    # [Mode 1] Delete
+    if (`$d) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) {
+            Write-Host "Error: Specify a name to delete." -ForegroundColor Red
+            return
+        }
+        if (`$bookmarks.ContainsKey(`$Name)) {
+            `$bookmarks.Remove(`$Name)
+            `$bookmarks | ConvertTo-Json | Set-Content `$configFile
+            Write-Host "Trash: Bookmark '`$Name' deleted." -ForegroundColor Yellow
+        } else {
+            Write-Host "Warning: Bookmark '`$Name' not found." -ForegroundColor Red
+        }
+        return
+    }
+
+    # [Mode 2] List
+    if (`$list) {
+        if (`$bookmarks.Count -eq 0) {
+            Write-Host "Empty: No bookmarks saved yet." -ForegroundColor Red
+        } else {
+            Write-Host "--- Saved Bookmarks ---" -ForegroundColor Cyan
+            `$bookmarks.GetEnumerator() | Format-Table -AutoSize
+        }
+        return
+    }
+
+    # [Mode 3] Jump / New / Overwrite
+    `$targetPath = ""
+    `$saveMode = `$false
+    `$isUpdate = `$false
+
+    # Case A: Jump
+    if (-not `$n -and -not `$o) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) {
+            Write-Host "Opening folder picker..." -ForegroundColor Cyan
+            `$raw = & `$exePath
+            if (`$raw) { `$targetPath = `$raw.Trim() }
+        } elseif (`$bookmarks.ContainsKey(`$Name)) {
+            `$targetPath = `$bookmarks[`$Name]
+            Write-Host "Rocket: Jumping to bookmark '`$Name'..." -ForegroundColor Green
+        } else {
+            Write-Host "Error: Bookmark '`$Name' not found." -ForegroundColor Red
+            Write-Host "Tips: Use '-n' for new, '-o' for overwrite." -ForegroundColor Yellow
+            return
+        }
+    
+    # Case B: New
+    } elseif (`$n) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "Error: Name required." -ForegroundColor Red; return }
+        if (`$bookmarks.ContainsKey(`$Name)) {
+            Write-Host "Error: Bookmark '`$Name' already exists!" -ForegroundColor Red
+            return
+        }
+        Write-Host "New: Creating bookmark '`$Name'..." -ForegroundColor Cyan
+        `$saveMode = `$true; `$isUpdate = `$false
+
+    # Case C: Overwrite
+    } elseif (`$o) {
+        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "Error: Name required." -ForegroundColor Red; return }
+        if (-not `$bookmarks.ContainsKey(`$Name)) {
+            Write-Host "Error: Bookmark '`$Name' not found." -ForegroundColor Red
+            return
+        }
+        Write-Host "Refresh: Overwriting bookmark '`$Name'..." -ForegroundColor Yellow
+        `$saveMode = `$true; `$isUpdate = `$true
+    }
+
+    # --- Save Execution ---
+    if (`$saveMode) {
+        `$raw = & `$exePath
+        if (`$raw) {
+            `$picked = `$raw.Trim()
+            if (-not [string]::IsNullOrWhiteSpace(`$picked)) {
+                `$targetPath = `$picked
+                `$oldPath = ""; if (`$isUpdate) { `$oldPath = `$bookmarks[`$Name] }
+                
+                `$bookmarks[`$Name] = `$targetPath
+                `$bookmarks | ConvertTo-Json | Set-Content `$configFile
+                
+                if (`$isUpdate) {
+                    Write-Host "Updated: '`$Name'" -ForegroundColor Yellow
+                    Write-Host "   From: `$oldPath" -ForegroundColor Gray
+                    Write-Host "     To: `$targetPath" -ForegroundColor Green
+                } else {
+                    Write-Host "Created: '`$Name' -> `$targetPath" -ForegroundColor Green
+                }
+            }
+        } else {
+            Write-Host "Action Cancelled." -ForegroundColor Gray
+            `$targetPath = ""
+        }
+    }
+
+    # --- Jump Execution ---
     if (-not [string]::IsNullOrWhiteSpace(`$targetPath)) {
         if (Test-Path -LiteralPath "`$targetPath") {
             Set-Location -LiteralPath "`$targetPath"
+        } else {
+            Write-Host "Error: Path '`$targetPath' not found!" -ForegroundColor Red
         }
     }
 }
 # --- Better-CD End ---
 "@
 
-# 檢查是否已經安裝過，避免重複寫入
-$currentProfileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
-if ($currentProfileContent -match "Better-CD Start") {
-    Write-Host "⚠️  Better-CD function already exists in your profile. Skipping." -ForegroundColor Yellow
+# --- 4. Write to Profile ---
+# 檢查是否已存在
+$currentProfile = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+if ($currentProfile -match "Better-CD Start") {
+    Write-Host "⚠️  Better-CD function already found in profile." -ForegroundColor Yellow
+    Write-Host "   To update logic or path, please delete the old 'b-cd' block in your profile manually." -ForegroundColor Gray
 } else {
     Add-Content -Path $profilePath -Value $functionScript
-    Write-Host "✅ PowerShell function added to $profilePath" -ForegroundColor Green
+    Write-Host "✅ Function registered! Pointing to: $exePathFound" -ForegroundColor Green
+    Write-Host "🎉 Installation Complete! Restart terminal to use 'b-cd'." -ForegroundColor Cyan
 }
-
-Write-Host "🎉 Installation Complete! Please restart your terminal or type '. `$PROFILE' to start using 'b-cd'." -ForegroundColor Cyan

@@ -1,32 +1,84 @@
-# Better-CD 🚀
-> A lightning-fast CLI directory switcher for Windows. No more `cd ../../../`.
+# 🚀 Better-CD (b-cd)
 
-**Better-CD** integrates the native Windows "Browse Folder" dialog into your terminal (PowerShell & CMD). It solves the classic "child process cannot change parent directory" problem using a smart shell wrapper.
+> A smarter, faster way to navigate directories in Windows PowerShell using a GUI picker and bookmarks.
+
+**Better-CD** replaces the tedious typing of long paths with a native Windows folder picker and a robust bookmarking system. It features a "Strict Mode" to prevent accidental overwrites of your saved locations.
+
+---
 
 ## ✨ Features
-- **GUI Selection:** Use the modern Windows folder picker to `cd`.
-- **Zero Config:** Just install and type `b-cd`.
-- **Safe:** Handles Unicode paths (Chinese/Japanese) perfectly.
-- **Cross-Shell:** Works seamlessly in PowerShell.
+
+- **📂 GUI Navigation:** Just type `b-cd` to open a folder picker and jump instantly.
+- **🔖 Smart Bookmarks:** Save your favorite project folders with short names.
+- **🛡️ Safety First:** Distinct flags for **New** (`-n`) and **Overwrite** (`-o`) actions prevent accidents.
+- **📜 Portable:** Install it anywhere; the script automatically registers the path.
+- **☁️ Cloud Friendly:** Configuration is saved in your User Home, keeping your bookmarks safe even if you move the executable.
+
+---
 
 ## 📦 Installation
 
-### Option 1: One-Click Install (Recommended)
-1. Download the latest release.
+### 1. Download & Place
+Download the release and unzip the folder to your preferred location (e.g., `C:\Tools\Better-cd` or `%LOCALAPPDATA%\Programs\Better-cd`).
+
+### 2. Run Installer
+1. Open the folder.
 2. Right-click `install.ps1` and select **"Run with PowerShell"**.
-3. Restart your terminal.
+3. The script will automatically register the `b-cd` command in your PowerShell Profile.
 
-### Option 2: Manual Install
-1. Place `better-cd-core.exe` anywhere (e.g., `C:\Tools`).
-2. Add the following function to your PowerShell profile (`notepad $PROFILE`):
-   ```powershell
-   function b-cd {
-       $target = (& "C:\Tools\better-cd-core.exe").Trim()
-       if ($target) { Set-Location $target }
-   }
-   ```
+### 3. Restart Terminal
+Close and reopen your PowerShell window (or type `. $PROFILE`) to start using it.
 
-   ###🛠 Usage
-   ```powershell
-   b-cd
-   ```
+---
+
+## 🎮 Usage Guide
+
+### 1. Basic Navigation
+Open the folder picker window.
+```powershell
+b-cd
+```
+
+### 2. Jump to a Bookmark
+Jump to a saved location immediately.
+
+```powerShell
+b-cd project
+```
+
+### 3. Create a New Bookmark (-n)
+Opens the picker and saves the selected path as "game". Returns an error if "game" already exists.
+```powerShell
+b-cd -n game
+```
+
+### 4. Overwrite a Bookmark (-o)
+Updates an existing bookmark with a new path. Returns an error if "game" does not exist (prevents typo creations).
+```powerShell
+b-cd -o game
+```
+
+### 5. Manage Bookmarks
+List all saved bookmarks:
+```powerShell
+b-cd -list
+```
+Delete a bookmark:
+```powerShell
+b-cd -d game
+```
+
+### 6. Check Version
+```powerShell
+b-cd -Version
+```
+
+## ⚙️ Configuration
+Executable: The tool runs from where you installed it.
+
+Bookmarks File: Stored safely in your user directory: %USERPROFILE%\.better-cd\bookmarks.json
+
+## 📝 License
+Version: 1.0.0 Author: Chris License: MIT License
+
+Copyright (c) 2025 Chris.
