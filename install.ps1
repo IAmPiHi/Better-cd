@@ -7,7 +7,7 @@ Write-Host "🚀 Installing Better-CD..." -ForegroundColor Cyan
 $currentDir = $PSScriptRoot
 
 # 假設 exe 就在 install.ps1 旁邊
-$exePathFound = Join-Path -Path $currentDir -ChildPath "better-cd-core.exe"
+$exePathFound = Join-Path -Path $currentDir -ChildPath "\bin\better-cd-core.exe"
 
 # 檢查檔案是否真的存在
 if (-not (Test-Path $exePathFound)) {
