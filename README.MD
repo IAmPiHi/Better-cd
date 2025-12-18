@@ -114,8 +114,6 @@ b-cd -rw oldname newname #rename
 
 b-cd clear #delete all bookmarks in current workspace
 
-b-cd clear name #delete all bookmarks in specific workspace
-
 ```
 
 ## ⚙️ Configuration
