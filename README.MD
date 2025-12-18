@@ -91,12 +91,31 @@ b-cd -d game
 ```
 Rename a bookmark:
 ```powershell
-b-cd -rn <orginal> <new>
+b-cd -rn orginal new #change name
 ```
 
 ### 7. Check Version
 ```powerShell
 b-cd -Version
+```
+
+### 7. Multiple workspace management
+You can switch over multiple workspace
+```
+b-cd -nw test #create a new workspace(name:test)
+
+b-cd -wlist #list all workspace
+
+b-cd -list name #check the list of specific workspace
+
+b-cd -dw name #delete a workspace
+
+b-cd -rw oldname newname #rename
+
+b-cd clear #delete all bookmarks in current workspace
+
+b-cd clear name #delete all bookmarks in specific workspace
+
 ```
 
 ## ⚙️ Configuration
