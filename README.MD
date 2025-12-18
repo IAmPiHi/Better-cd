@@ -67,6 +67,7 @@ b-cd -in work
 
 # Save a SPECIFIC path as 'game'
 b-cd -in game "D:\Games\SteamLibrary"
+```
 
 Overwrite Existing Bookmark (-io)
 
