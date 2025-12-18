@@ -62,7 +62,7 @@ Manage bookmarks quickly without opening the GUI window.
 
 **Create New Bookmark (`-in`)**
 ```powershell
-# Save the CURRENT directory as 'work'
+### Save the CURRENT directory as 'work'
 b-cd -in work
 ```
 
