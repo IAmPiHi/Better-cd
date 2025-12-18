@@ -1,22 +1,22 @@
 # install.ps1
 
-Write-Host "🚀 Installing Better-CD..." -ForegroundColor Cyan
+Write-Host "Installing Better-CD..." -ForegroundColor Cyan
 
 # --- 1. Locate the Executable (Dynamic) ---
-# 取得目前這個 install.ps1 所在的資料夾路徑
+
 $currentDir = $PSScriptRoot
 
-# 假設 exe 就在 install.ps1 旁邊
+
 $exePathFound = Join-Path -Path $currentDir -ChildPath "\bin\better-cd-core.exe"
 
-# 檢查檔案是否真的存在
+
 if (-not (Test-Path $exePathFound)) {
-    Write-Host "❌ Error: 'better-cd-core.exe' not found in: $currentDir" -ForegroundColor Red
-    Write-Host "   Please ensure the .exe is in the same folder as this script." -ForegroundColor Gray
+    Write-Host "Error: 'better-cd-core.exe' not found in: $currentDir" -ForegroundColor Red
+    Write-Host "Please ensure the .exe is in the same folder as this script." -ForegroundColor Gray
     exit
 }
 
-Write-Host "📍 Detected installation path: $currentDir" -ForegroundColor Gray
+Write-Host "Detected installation path: $currentDir" -ForegroundColor Gray
 
 # --- 2. Prepare Profile Path ---
 $profilePath = $PROFILE
@@ -24,11 +24,6 @@ if (-not (Test-Path $profilePath)) {
     New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
 
-# --- 3. Construct the Function (Injecting the Path) ---
-# 重點：我們要把 $exePathFound (安裝當下的絕對路徑) 寫死進去
-# 注意：Here-String 中的變數：
-#       $var      -> 會被替換成安裝時的值 (例如路徑)
-#       `$var     -> 會保留字串形式 (例如參數 $Name, $o)
 
 $functionScript = @"
 
@@ -39,7 +34,7 @@ function b-cd {
         [switch]`$n,  # New
         [switch]`$o,  # Overwrite
         [switch]`$d,  # Delete
-        [switch]`$list # List
+        [switch]`$list, # List
         [switch]`$Version  # <--- [NEW] Version Flag
     )
     if (`$Version) {
@@ -191,13 +186,13 @@ function b-cd {
 "@
 
 # --- 4. Write to Profile ---
-# 檢查是否已存在
+
 $currentProfile = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
 if ($currentProfile -match "Better-CD Start") {
-    Write-Host "⚠️  Better-CD function already found in profile." -ForegroundColor Yellow
-    Write-Host "   To update logic or path, please delete the old 'b-cd' block in your profile manually." -ForegroundColor Gray
+    Write-Host "Better-CD function already found in profile." -ForegroundColor Yellow
+    Write-Host "To update logic or path, please delete the old 'b-cd' block in your profile manually." -ForegroundColor Gray
 } else {
     Add-Content -Path $profilePath -Value $functionScript
-    Write-Host "✅ Function registered! Pointing to: $exePathFound" -ForegroundColor Green
-    Write-Host "🎉 Installation Complete! Restart terminal to use 'b-cd'." -ForegroundColor Cyan
+    Write-Host "Function registered! Pointing to: $exePathFound" -ForegroundColor Green
+    Write-Host "Installation Complete! Restart terminal to use 'b-cd'." -ForegroundColor Cyan
 }
