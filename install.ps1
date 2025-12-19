@@ -31,21 +31,23 @@ function b-cd {
         
         [Parameter(Position=1)]
         [string]`$PathInput = "", 
+
+        [string]`$Name2 = "", 
         
-        [switch]`$n,       # GUI New
-        [switch]`$o,       # GUI Overwrite
-        [switch]`$d,       # Delete
-        [switch]`$rn,      # Rename Bookmark
-        [switch]`$list,    # List bookmarks
-        [switch]`$in,      # Instant New
-        [switch]`$io,      # Instant Overwrite
-        [switch]`$clear,   # Clear All Bookmarks
-        [switch]`$sw,      # Switch Workspace
-        [switch]`$nw,      # New Workspace
-        [switch]`$dw,      # Delete Workspace
-        [switch]`$rw,      # [NEW] Rename Workspace
-        [switch]`$wlist,   # List Workspaces
-        [switch]`$Version  # Version
+        [switch]`$n,        
+        [switch]`$o,        
+        [switch]`$d,        
+        [switch]`$rn,       
+        [switch]`$list,     
+        [switch]`$in,       
+        [switch]`$io,       
+        [switch]`$clear,    
+        [switch]`$sw,       
+        [switch]`$nw,       
+        [switch]`$dw,       
+        [switch]`$rw,       
+        [switch]`$wlist,    
+        [switch]`$Version   
     )
 
     # --- Version Check ---
@@ -156,45 +158,56 @@ function b-cd {
         return
     }
 
-    # 4. Rename Workspace (-rw) [NEW]
     if (`$rw) {
-        if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Specify a new name for the current profile." -ForegroundColor Red; return }
-        
-        `$newJsonFile = "`$configDir\`$Name.json"
-        
-        # Check collision
-        if (Test-Path `$newJsonFile) {
-            Write-Host "[ERROR] A profile named '`$Name' already exists." -ForegroundColor Red
+        `$src = ""
+        `$dst = ""
+        `$srcFile = ""
+
+        if (-not [string]::IsNullOrWhiteSpace(`$Name) -and (-not [string]::IsNullOrWhiteSpace(`$PathInput) -or -not [string]::IsNullOrWhiteSpace(`$Name2))) {
+            `$src = `$Name
+            `$dst = if (-not [string]::IsNullOrWhiteSpace(`$Name2)) { `$Name2 } else { `$PathInput }
+            `$srcFile = "`$configDir\`$src.json"
+        } elseif (-not [string]::IsNullOrWhiteSpace(`$Name)) {
+            `$src = `$currentProfileName
+            `$dst = `$Name
+            `$srcFile = `$currentJsonPath
+        } else {
+            Write-Host "[ERROR] Usage: b-cd -rw [old] new" -ForegroundColor Red
             return
         }
 
-        # Show context
-        Write-Host "--- Renaming Current Workspace ---" -ForegroundColor Yellow
-        Write-Host "From: `$currentProfileName" -ForegroundColor Gray
-        Write-Host "  To: `$Name" -ForegroundColor Cyan
-        
-        if (`$bookmarks.Count -gt 0) {
-            `$bookmarks.GetEnumerator() | Format-Table -AutoSize
-        } else {
-            Write-Host "(Empty Profile)" -ForegroundColor Gray
+        if (-not (Test-Path `$srcFile)) {
+            Write-Host "[ERROR] Source '`$src' not found." -ForegroundColor Red
+            return
         }
 
-        # Confirm
-        `$confirm = Read-Host "Type 'v' to confirm rename"
+        `$dstFile = "`$configDir\`$dst.json"
+        if (Test-Path `$dstFile) {
+            Write-Host "[ERROR] Name '`$dst' already exists." -ForegroundColor Red
+            return
+        }
+
+        Write-Host "--- Workspace Rename ---" -ForegroundColor Yellow
+        Write-Host "From: `$src" -ForegroundColor Gray
+        Write-Host "  To: `$dst" -ForegroundColor Cyan
+        
+        `$confirm = Read-Host "Type 'v' to confirm"
         if (`$confirm -eq "v") {
             try {
-                Move-Item -Path `$currentJsonPath -Destination `$newJsonFile -Force
-                Set-Content `$activeProfileFile `$Name
-                Write-Host "[SUCCESS] Profile renamed to '`$Name'." -ForegroundColor Green
+                Move-Item -Path `$srcFile -Destination `$dstFile -Force
+                if (`$src -eq `$currentProfileName) {
+                    Set-Content `$activeProfileFile `$dst
+                }
+                Write-Host "[SUCCESS] Renamed to '`$dst'." -ForegroundColor Green
             } catch {
-                Write-Host "[ERROR] Failed to rename file." -ForegroundColor Red
+                Write-Host "[ERROR] Failed: `$(`$_.Exception.Message)" -ForegroundColor Red
             }
         } else {
             Write-Host "Cancelled." -ForegroundColor Gray
         }
         return
     }
-
+    
     # 5. Delete Workspace (-dw)
     if (`$dw) {
         if ([string]::IsNullOrWhiteSpace(`$Name)) { Write-Host "[ERROR] Specify a profile name to delete." -ForegroundColor Red; return }
