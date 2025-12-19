@@ -52,7 +52,7 @@ function b-cd {
 
     # --- Version Check ---
     if (`$Version) {
-        Write-Host "Better-CD v1.4.0" -ForegroundColor Cyan
+        Write-Host "Better-CD v1.5.0" -ForegroundColor Cyan
         Write-Host "Author:  Chris" -ForegroundColor Gray
         Write-Host "License: MIT License" -ForegroundColor Gray
         return
@@ -409,5 +409,6 @@ if ($currentProfile -match "Better-CD Start") {
 } else {
     Add-Content -Path $profilePath -Value $functionScript
     Write-Host "[SUCCESS] Function registered! Pointing to: $exePathFound" -ForegroundColor Green
-    Write-Host "[DONE] Installation Complete! Try: b-cd -rw newname" -ForegroundColor Cyan
+    Write-Host "[DONE] Installation Complete! Restart your powershell and try: b-cd -version" -ForegroundColor Cyan
+
 }
