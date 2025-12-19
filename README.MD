@@ -99,7 +99,7 @@ b-cd -rn orginal new #change name
 b-cd -Version
 ```
 
-### 7. Multiple workspace management (Optional)
+### 7. Multiple workspace management (Advanced)
 You can switch over multiple workspace
 ```
 b-cd -nw test #create a new workspace(name:test)
