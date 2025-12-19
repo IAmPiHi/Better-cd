@@ -10,6 +10,7 @@
 ## ✨ Features
 
 - **📂 GUI Navigation:** Just type `b-cd` to open a folder picker and jump instantly.
+- **🗺️ Quick Navigation: Quickly jump to pre-set locations via commands.
 - **🔖 Smart Bookmarks:** Save your favorite project folders with short names.
 - **🛡️ Safety First:** Distinct flags for **New** (`-n`) and **Overwrite** (`-o`) actions prevent accidents.
 - **📜 Portable:** Install it anywhere; the script automatically registers the path.
