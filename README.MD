@@ -1,4 +1,4 @@
-# 🚀 Better-CD (b-cd)
+# 🚀 Better-CD for Windows (b-cd)
 
 > A smarter, faster way to navigate directories in Windows PowerShell using a GUI picker and bookmarks.<br>
 >Switch between your saved locations to navigate to your target faster.
