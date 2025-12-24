@@ -27,6 +27,7 @@ Download and unzip to your preferred location. Note: Do not move this folder aft
 1. Open the folder.
 2. Right-click `install.ps1` and select **"Run with PowerShell"**.
 3. The script will automatically register the `b-cd` command in your PowerShell Profile.
+4. Also you can delete the "src" floder,it is just the source code.
 
 ### 3. Restart Terminal
 Close and reopen your PowerShell window (or type `. $PROFILE`) to start using it.
