@@ -37,7 +37,7 @@ Download and unzip to your preferred location. Note: Do not move this folder aft
 1. Open the folder.
 2. Right-click `install.ps1` and select **"Run with PowerShell"**.
 3. The script will automatically register the `b-cd` command in your PowerShell Profile.
-4. Also you can delete the "src" floder,it is just the source code.
+4. Also you can delete the "src" folder,it is just the source code.
 
 ### 3. Restart Terminal
 Close and reopen your PowerShell window (or type `. $PROFILE`) to start using it.
@@ -104,7 +104,7 @@ b-cd -d game
 ```
 Rename a bookmark:
 ```powershell
-b-cd -rn orginal new #change name
+b-cd -rn original new #change name
 ```
 
 ### 7. Check Version
@@ -112,7 +112,7 @@ b-cd -rn orginal new #change name
 b-cd -Version
 ```
 
-### 7. Multiple workspace management (Advanced)
+### 8. Multiple workspace management (Advanced)
 You can switch between multiple workspaces. <br>
 for example : project1, project2, research1, research2 ...<br>
 Each workspace can hold different bookmarks for different purposes. <br>
