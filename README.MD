@@ -1,134 +1,48 @@
 # 🚀 Better-CD for Windows (b-cd)
 
-> A smarter, faster way to navigate directories in Windows PowerShell using a GUI picker and bookmarks.<br>
->Switch between your saved locations to navigate to your target faster.
-
-**Better-CD** replaces the tedious typing of long paths with a native Windows folder picker and a robust bookmarking system. It features a "Strict Mode" to prevent accidental overwrites of your saved locations.
+> **Eliminate the friction of directory navigation.** Better-CD provides a seamless bridge between the command line and the Windows GUI, allowing for instantaneous path jumping via bookmarks and a native folder picker.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **📂 GUI Navigation:** Just type `b-cd` to open a folder picker and jump instantly.
-- **🗺️ Quick Navigation:** Quickly jump to pre-set locations via commands.
-- **🔖 Smart Bookmarks:** Save your favorite project folders with short names.
-- **🛡️ Safety First:** Distinct flags for **New** (`-n`) and **Overwrite** (`-o`) actions prevent accidents.
-- **📜 Portable:** Install it anywhere; the script automatically registers the path.
-- **☁️ Cloud Friendly:** Configuration is saved in your User Home, keeping your bookmarks safe even if you move the executable.
+- **📂 GUI-Enhanced Navigation:** Invoke `b-cd` to trigger a native Windows folder picker for visual directory selection.
+- **🔖 Persistent Bookmarking:** Assign intuitive aliases to your most-frequented project directories.
+- **🛡️ Safeguarded Operations:** Integrated "Strict Mode" utilizes distinct flags for **Creation** (`-n`) and **Modification** (`-o`) to prevent accidental bookmark overwrites.
+- **📜 Portable & Lightweight:** A zero-dependency tool that persists your configuration within the `%USERPROFILE%` directory, ensuring portability across environments.
+- **🗂️ Workspace Isolation:** Organize bookmarks into logical "Workspaces" (e.g., Development, Research, Personal) for a clutter-free workflow.
 
 ---
 
 ## 📦 Installation
 
-### 1. Download & Place
-Download and unzip to your preferred location. Note: Do not move this folder after installation.
+### 1. Deployment
+Download the latest release and extract the archive to a permanent location. 
+*Note: Ensure the directory remains static after installation to maintain path integrity.*
 
-### 2. Run Installer
-1. Open the folder.
+### 2. Execution of Installer
+1. Navigate to the extracted folder.
 2. Right-click `install.ps1` and select **"Run with PowerShell"**.
-3. The script will automatically register the `b-cd` command in your PowerShell Profile.
-4. Also you can delete the "src" floder,it is just the source code.
-
-### 3. Restart Terminal
-Close and reopen your PowerShell window (or type `. $PROFILE`) to start using it.
+3. The script will automatically append the necessary aliases to your `$PROFILE`.
+4. **Note:** The `src` folder is provided for transparency and can be safely deleted after the installation is complete.
 
 ---
 
 ## 🎮 Usage Guide
 
-### 1. Basic Navigation
-Open the folder picker window.
+### Persistent Bookmarks
+| Command | Action |
+| :--- | :--- |
+| `b-cd` | Opens the GUI folder picker. |
+| `b-cd <alias>` | Jumps to a saved bookmark instantly. |
+| `b-cd -n <alias>` | Creates a **new** bookmark (Errors if alias exists). |
+| `b-cd -o <alias>` | **Overwrites** an existing bookmark (Errors if alias is missing). |
+
+### ⚡ Instant Mode (Headless CLI)
+Manage your paths without leaving the terminal:
 ```powershell
-b-cd
-```
-
-### 2. Jump to a Bookmark
-Jump to a saved location immediately.
-
-```powerShell
-b-cd project
-```
-
-### 3. Create a New Bookmark (-n)
-Opens the picker and saves the selected path as "game". Returns an error if "game" already exists.
-```powerShell
-b-cd -n game
-```
-
-### 4. Overwrite a Bookmark (-o)
-Updates an existing bookmark with a new path. Returns an error if "game" does not exist (prevents typo creations).
-```powerShell
-b-cd -o game
-```
-### 5. ⚡ Instant Mode (CLI Only)
-Manage bookmarks quickly without opening the GUI window.
-
-**Create New Bookmark (`-in`)**
-```powershell
-### Save the CURRENT directory as 'work'
+# Save CURRENT directory as 'work'
 b-cd -in work
 
 # Save a SPECIFIC path as 'game'
 b-cd -in game "D:\Games\SteamLibrary"
-```
-
-Overwrite Existing Bookmark (-io)
-
-```PowerShell
-
-# Update 'work' to point to the CURRENT directory
-b-cd -io work
-
-# Update 'game' to point to a new path
-b-cd -io game "E:\NewLibrary"
-```
-
-### 6. Manage Bookmarks
-List all saved bookmarks:
-```powerShell
-b-cd -list
-```
-Delete a bookmark:
-```powerShell
-b-cd -d game
-```
-Rename a bookmark:
-```powershell
-b-cd -rn orginal new #change name
-```
-
-### 7. Check Version
-```powerShell
-b-cd -Version
-```
-
-### 7. Multiple workspace management (Advanced)
-You can switch between multiple workspaces. <br>
-for example : project1, project2, research1, research2 ...<br>
-Each workspace can hold different bookmarks for different purposes. <br>
-```
-b-cd -nw test #create a new workspace(name:test)
-
-b-cd -wlist #list all workspace
-
-b-cd -list name #check the list of specific workspace
-
-b-cd -dw name #delete a workspace
-
-b-cd -rw newname #rename this current workspace
-
-b-cd -rw workspacename newname #rename a specific workspace
-
-b-cd clear #delete all bookmarks in current workspace
-
-```
-
-## ⚙️ Configuration
-Executable: The tool runs from where you installed it.
-
-Bookmarks File: Stored safely in your user directory: %USERPROFILE%\.better-cd\bookmarks.json
-
-## 📝 License
-Version: 1.5.0 Author: Chris License: MIT License
-
-Copyright (c) 2025 Chris.
