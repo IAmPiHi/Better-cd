@@ -103,9 +103,9 @@ b-cd -Version
 ```
 
 ### 7. Multiple workspace management (Advanced)
-You can switch between multiple workspaces. 
-for example : project1, project2, research1, research2 ...
-Each workspace can hold different bookmarks for different purposes.
+You can switch between multiple workspaces. <br>
+for example : project1, project2, research1, research2 ...<br>
+Each workspace can hold different bookmarks for different purposes. <br>
 ```
 b-cd -nw test #create a new workspace(name:test)
 
