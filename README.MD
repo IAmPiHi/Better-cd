@@ -129,7 +129,7 @@ b-cd -rw newname #rename this current workspace
 
 b-cd -rw workspacename newname #rename a specific workspace
 
-b-cd clear #delete all bookmarks in current workspace
+b-cd -clear #delete all bookmarks in current workspace
 
 ```
 
