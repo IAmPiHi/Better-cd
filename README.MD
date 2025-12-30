@@ -116,7 +116,7 @@ b-cd -Version
 You can switch between multiple workspaces. <br>
 for example : project1, project2, research1, research2 ...<br>
 Each workspace can hold different bookmarks for different purposes. <br>
-```
+```powerShell
 b-cd -nw test #create a new workspace(name:test)
 
 b-cd -wlist #list all workspace
