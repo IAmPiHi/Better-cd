@@ -139,7 +139,8 @@ Executable: The tool runs from where you installed it.
 Bookmarks File: Stored safely in your user directory: %USERPROFILE%\.better-cd\bookmarks.json
 
 ## 📝 License
-Version: 1.5.0 Author: Chris<br>
+Version: 1.5.0<br>
+Author: Chris<br>
 License: MIT License<br><br>
 
 Copyright (c) 2025 Chris.
