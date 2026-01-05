@@ -32,7 +32,7 @@
 
 ### 1. Download & Place
 Download and unzip to your preferred location. <br>
-Note: Do not move this folder after installation.
+**Note: Do not move this folder after installation.**
 
 ### 2. Run Installer
 1. Open the folder.
