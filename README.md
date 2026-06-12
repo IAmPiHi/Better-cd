@@ -10,7 +10,7 @@
 
 Stop typing long paths. With `b-cd`, you jump to any saved location in seconds, or browse visually with a native Windows folder picker. Multiple workspaces let you keep separate bookmark sets for different projects or contexts.
 
-![main](docs/DEMO.gif)
+![main](doc/DEMO.gif)
 
 ---
 
